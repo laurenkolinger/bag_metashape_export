@@ -10,13 +10,26 @@ Usage:
 
 Example:
     python extract_georeferenced_images.py /path/to/mission.bag /path/to/output
+
+VICARIUS Integration:
+    This module logs to the VICARIUS event stream per Commandment VIII.
 """
 
 import os
 import sys
 import argparse
+import time
 from pathlib import Path
 from datetime import datetime
+
+# VICARIUS logging integration
+VICARIUS_ROOT = os.environ.get("VICARIUS_ROOT", "/mnt/vicarius_drive/vicarius")
+sys.path.insert(0, os.path.join(VICARIUS_ROOT, "_logging", "src"))
+try:
+    from vicarius_log import get_log
+    VICARIUS_LOGGING = True
+except ImportError:
+    VICARIUS_LOGGING = False
 
 import numpy as np
 import pandas as pd
@@ -258,6 +271,8 @@ POSE DATA
 
 def main():
     args = parse_args()
+    start_time = time.time()
+    start_event_id = None
 
     bag_path = Path(args.bag_file)
     if not bag_path.exists():
@@ -268,6 +283,18 @@ def main():
     bag_name = bag_path.stem
     output_base = Path(args.output_dir) / bag_name
     output_base.mkdir(parents=True, exist_ok=True)
+
+    # VICARIUS: Log process start
+    if VICARIUS_LOGGING:
+        try:
+            log = get_log()
+            start_event_id = log.process_start(
+                module="bag_metashape_export",
+                purpose=f"Extract georeferenced images from {bag_name}",
+                inputs=[str(bag_path)]
+            )
+        except Exception as e:
+            print(f"  Warning: VICARIUS logging unavailable: {e}")
 
     print(f"{'='*60}")
     print(f"ROS Bag Georeferenced Image Extractor")
@@ -351,6 +378,7 @@ def main():
     print(f"  Saved: {map_path}")
 
     # Print summary
+    elapsed = time.time() - start_time
     print(f"\n{'='*60}")
     print("EXTRACTION COMPLETE")
     print(f"{'='*60}")
@@ -360,11 +388,27 @@ def main():
     print(f"  - forward_images/: {stats['forward_images']} images")
     print(f"  - forward_reference.csv")
     print(f"  - mission_map.png")
+    print(f"  - Duration: {elapsed:.1f} seconds")
     print()
     print("METASHAPE IMPORT:")
     print("  1. Add photos from down_images/ or forward_images/")
     print("  2. Reference pane → Import → Select corresponding _reference.csv")
     print("  3. Settings: WGS84, Columns: Label=1, Lon=2, Lat=3, Alt=4, Yaw=5, Pitch=6, Roll=7")
+
+    # VICARIUS: Log process end
+    if VICARIUS_LOGGING:
+        try:
+            log = get_log()
+            total_images = stats['down_images'] + stats['forward_images']
+            log.process_end(
+                module="bag_metashape_export",
+                status="success",
+                duration_sec=elapsed,
+                outputs=[str(output_base)],
+                notes=f"Extracted {total_images} images from {bag_name}"
+            )
+        except Exception:
+            pass  # Logging is best-effort
 
 
 if __name__ == "__main__":

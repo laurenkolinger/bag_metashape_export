@@ -1,0 +1,154 @@
+# ==============================================================================
+# MODULE INTERFACE DEFINITION
+# ==============================================================================
+# bag_metashape_export - Extract georeferenced images from ROS bags for Metashape
+# ==============================================================================
+
+name: "bag_metashape_export"
+version: "1.0.0"
+description: "Extract georeferenced images from ROS bag files for Agisoft Metashape photogrammetry"
+author: "Lauren K Olinger"
+created: "2026-02-04"
+
+# Module classification
+type: "extract"
+
+# ------------------------------------------------------------------------------
+# INPUTS
+# ------------------------------------------------------------------------------
+inputs:
+  - name: "bag_file"
+    type: "file"
+    formats: [".bag"]
+    location: "raw/auv/"
+    required: true
+    description: "ROS bag file containing camera images and pose data"
+
+# ------------------------------------------------------------------------------
+# OUTPUTS
+# ------------------------------------------------------------------------------
+outputs:
+  - name: "down_images"
+    type: "directory"
+    format: ".jpg"
+    location: "inprocess/{run_name}/outputs/{bag_name}/down_images/"
+    naming_pattern: "down_{NNNN}.jpg"
+    description: "Down-facing camera images (4K science camera)"
+
+  - name: "forward_images"
+    type: "directory"
+    format: ".jpg"
+    location: "inprocess/{run_name}/outputs/{bag_name}/forward_images/"
+    naming_pattern: "forward_{NNNN}.jpg"
+    description: "Forward-facing ZED2 camera images"
+
+  - name: "down_reference"
+    type: "file"
+    format: ".csv"
+    location: "inprocess/{run_name}/outputs/{bag_name}/"
+    naming_pattern: "down_reference.csv"
+    description: "Georeferenced positions for down camera (Metashape import format)"
+
+  - name: "forward_reference"
+    type: "file"
+    format: ".csv"
+    location: "inprocess/{run_name}/outputs/{bag_name}/"
+    naming_pattern: "forward_reference.csv"
+    description: "Georeferenced positions for forward camera (Metashape import format)"
+
+  - name: "mission_map"
+    type: "file"
+    format: ".png"
+    location: "inprocess/{run_name}/outputs/{bag_name}/"
+    naming_pattern: "mission_map.png"
+    description: "Mission path visualization with statistics"
+
+# ------------------------------------------------------------------------------
+# PARAMETERS
+# ------------------------------------------------------------------------------
+parameters:
+  - name: "output_dir"
+    type: "string"
+    default: "."
+    required: false
+    description: "Output directory (defaults to current directory)"
+
+# ------------------------------------------------------------------------------
+# EXPECTED ROS TOPICS
+# ------------------------------------------------------------------------------
+# These are the default topics the script expects in the bag file:
+ros_topics:
+  required:
+    - topic: "/pose"
+      type: "rangerbot_msgs/pose"
+      description: "Position (x=lon, y=lat), depth, heading, pitch, roll, altitudeUsed"
+
+  cameras:
+    - topic: "/science/image_raw"
+      type: "sensor_msgs/Image"
+      description: "Down-facing science camera (4K)"
+      camera_name: "down"
+
+    - topic: "/zed2/zed_node/left/image_rect_color"
+      type: "sensor_msgs/Image"
+      description: "Forward-facing ZED2 camera"
+      camera_name: "forward"
+
+  optional:
+    - topic: "/pressure"
+      description: "Pressure sensor depth"
+    - topic: "/dvl_dr"
+      description: "DVL dead reckoning position"
+    - topic: "/dvl_fix"
+      description: "DVL velocity and altitude"
+
+# ------------------------------------------------------------------------------
+# RUNTIME REQUIREMENTS
+# ------------------------------------------------------------------------------
+runtime:
+  python_version: ">=3.10"
+  gpu_required: false
+  tested_os:
+    - "Ubuntu 22.04"
+    - "Ubuntu 24.04"
+  dependencies: "requirements.txt"
+  estimated_time: "1-5 min per bag file depending on image count"
+
+# ------------------------------------------------------------------------------
+# RELATED STUDIES
+# ------------------------------------------------------------------------------
+studies:
+  - "S1_historical"
+  - "S2_3D_structure"
+  - "S3_colony_tracking"
+
+# ------------------------------------------------------------------------------
+# METASHAPE IMPORT SETTINGS
+# ------------------------------------------------------------------------------
+# After running this module, import to Metashape with these settings:
+metashape_import:
+  coordinate_system: "WGS 84 (EPSG:4326)"
+  columns:
+    label: 1
+    longitude: 2
+    latitude: 3
+    altitude: 4
+    yaw: 5
+    pitch: 6
+    roll: 7
+  start_row: 2
+  rotation_format: "Yaw, Pitch, Roll (degrees)"
+
+# ------------------------------------------------------------------------------
+# NOTES
+# ------------------------------------------------------------------------------
+notes: |
+  This module extracts images and pose data from ROS bag files recorded by
+  underwater vehicles (AUVs/ROVs) and generates reference files for
+  photogrammetric reconstruction in Agisoft Metashape.
+
+  The script interpolates pose data to match exact image timestamps,
+  providing accurate geolocation for each extracted frame.
+
+  To modify camera topics, edit CAMERA_CONFIG in the script or use
+  the script as a template for custom configurations.
