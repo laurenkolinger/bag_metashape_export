@@ -5,6 +5,8 @@
 # ==============================================================================
 
 name: "bag_metashape_export"
+display_name: "Bag Image Export"
+tags: ["AUV", "3D"]
 version: "1.0.0"
 description: "Extract georeferenced images from ROS bag files for Agisoft Metashape photogrammetry"
 author: "Lauren K Olinger"
@@ -20,48 +22,36 @@ inputs:
   - name: "bag_file"
     type: "file"
     formats: [".bag"]
-    location: "raw/auv/"
+    location: "<NAS path supplied at run time>"
     required: true
     description: "ROS bag file containing camera images and pose data"
 
 # ------------------------------------------------------------------------------
-# OUTPUTS
+# OUTPUTS - data-dictionary contract
 # ------------------------------------------------------------------------------
+# Each entry binds a physical artifact to a descriptor under
+# _METADATA/dictionary/datasets/<dataset>.yaml. eml: true triggers EML 2.2.0
+# generation at run finalisation via _METADATA/sidecar/generate.py.
 outputs:
-  - name: "down_images"
-    type: "directory"
-    format: ".jpg"
-    location: "inprocess/{run_name}/outputs/{bag_name}/down_images/"
-    naming_pattern: "down_{NNNN}.jpg"
-    description: "Down-facing camera images (4K science camera)"
+  - dataset: "bag_metashape_export_down_images"
+    path_template: "inprocess/{run_name}/outputs/{bag_name}/down_images/"
+    eml: true                                                            # directory of down-facing 4K JPGs
 
-  - name: "forward_images"
-    type: "directory"
-    format: ".jpg"
-    location: "inprocess/{run_name}/outputs/{bag_name}/forward_images/"
-    naming_pattern: "forward_{NNNN}.jpg"
-    description: "Forward-facing ZED2 camera images"
+  - dataset: "bag_metashape_export_forward_images"
+    path_template: "inprocess/{run_name}/outputs/{bag_name}/forward_images/"
+    eml: true                                                            # directory of forward-facing ZED2 JPGs
 
-  - name: "down_reference"
-    type: "file"
-    format: ".csv"
-    location: "inprocess/{run_name}/outputs/{bag_name}/"
-    naming_pattern: "down_reference.csv"
-    description: "Georeferenced positions for down camera (Metashape import format)"
+  - dataset: "bag_metashape_export_down_reference"
+    path_template: "inprocess/{run_name}/outputs/{bag_name}/down_reference.csv"
+    eml: true                                                            # Metashape-import georeference CSV
 
-  - name: "forward_reference"
-    type: "file"
-    format: ".csv"
-    location: "inprocess/{run_name}/outputs/{bag_name}/"
-    naming_pattern: "forward_reference.csv"
-    description: "Georeferenced positions for forward camera (Metashape import format)"
+  - dataset: "bag_metashape_export_forward_reference"
+    path_template: "inprocess/{run_name}/outputs/{bag_name}/forward_reference.csv"
+    eml: true                                                            # Metashape-import georeference CSV
 
-  - name: "mission_map"
-    type: "file"
-    format: ".png"
-    location: "inprocess/{run_name}/outputs/{bag_name}/"
-    naming_pattern: "mission_map.png"
-    description: "Mission path visualization with statistics"
+  - dataset: "bag_metashape_export_mission_map"
+    path_template: "inprocess/{run_name}/outputs/{bag_name}/mission_map.png"
+    eml: true                                                            # mission-path visualization
 
 # ------------------------------------------------------------------------------
 # PARAMETERS
@@ -113,6 +103,12 @@ runtime:
     - "Ubuntu 24.04"
   dependencies: "requirements.txt"
   estimated_time: "1-5 min per bag file depending on image count"
+
+# ------------------------------------------------------------------------------
+# CLI INTERFACE
+# ------------------------------------------------------------------------------
+cli:
+  main_script: "extract_georeferenced_images.py"
 
 # ------------------------------------------------------------------------------
 # RELATED STUDIES
