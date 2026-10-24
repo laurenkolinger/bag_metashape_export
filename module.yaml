@@ -5,7 +5,7 @@
 # ==============================================================================
 
 name: "bag_metashape_export"
-display_name: "Bag Image Export"
+display_name: "VECTOR"    # V-fleet name per Lauren 2026-09-02 (was Bag Image Export)
 tags: ["AUV", "3D"]
 version: "1.0.0"
 description: "Extract georeferenced images from ROS bag files for Agisoft Metashape photogrammetry"
